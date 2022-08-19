@@ -1,0 +1,7 @@
+node_modules/
+package-lock.json
+.history/
+.vscode/
+build
+*.zip
+.DS_Store
