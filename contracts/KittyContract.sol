@@ -2,12 +2,13 @@
 pragma solidity ^0.8.0;
 
 import "./IERC721.sol";
+import "./Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
 
-contract KittyContract is IERC721{
+contract KittyContract is IERC721, Ownable {
     
     using Counters for Counters.Counter;
-    
+    uint256 public constant CREATION_LIMIT_GEN0 = 10; 
     string private _name = "";
     string private _symbol = "";
 
@@ -19,16 +20,67 @@ contract KittyContract is IERC721{
         uint16 generation;
     }
 
-    Kitty[] private kitties;
-    mapping(address => uint256) private owners_amount;
-    mapping(uint256 => address) private kitties_to_owners;
+    event Birth (
+        address owner, 
+        uint256 kittenId,
+        uint32 mumId,
+        uint32 dadId,
+        uint256 genes
+    );
 
-    Counters.Counter private _nextTokenId; 
+    Kitty[] public kitties;
+    mapping(address => uint256) public owners_amount;
+    mapping(uint256 => address) public kitties_to_owners;
+    uint256 public gen0Counter;
+
+    Counters.Counter public _nextTokenId; 
     
     constructor(){
         _nextTokenId.reset();
         _name = "MildoKitties";
         _symbol = "MKT";
+    }
+    
+    function createKittyGen0(uint256 _genes) public returns (uint256){
+        emit Birth(address(0),0,0,0,0);
+        require(gen0Counter < CREATION_LIMIT_GEN0, "Gen 0 limit reached");
+        emit Birth(address(0),0,0,1,1);
+        gen0Counter ++;
+        return _createKitty(0, 0, 0, _genes, msg.sender);
+    }
+
+    function getKitty(uint256 index) external view returns (Kitty memory kitty){
+        require(index < _nextTokenId.current(), "index doesn't exist");
+        return kitties[index];
+    }
+    
+    function getKitty2(uint256 index) external view returns (uint256 genes,
+                                                            uint256 birthTime,
+                                                            uint256 mumId,
+                                                            uint256 dadId,
+                                                            uint256 generation){
+        require(index < _nextTokenId.current());
+        Kitty storage k = kitties[index];
+        genes = k.genes;
+        birthTime = uint256(k.birthTime);
+        mumId = uint256(k.mumId);
+        dadId = uint256(k.dadId);
+        generation = uint256(k.generation);
+    }
+
+    function _createKitty( uint32 _mumId, uint32 _dadId,uint16 _generation, uint256 _genes, address _owner ) internal returns (uint256){
+        Kitty memory _kitty = Kitty({genes: _genes,
+                                     birthTime:uint64(block.timestamp),
+                                     mumId: _mumId,
+                                     dadId: _dadId,
+                                     generation: uint16(_generation)});
+
+        kitties.push(_kitty);
+        
+        _transfer(address(0), _owner, _nextTokenId.current()); 
+        emit Birth(_owner, _nextTokenId.current(), _mumId, _dadId, _genes);
+        _nextTokenId.increment();
+        return _nextTokenId.current() -1;
     }
 
     function balanceOf(address owner) external override view returns (uint256 balance){
@@ -38,21 +90,21 @@ contract KittyContract is IERC721{
     /*
      * @dev Returns the total number of tokens in circulation.
      */
-    function totalSupply() external override view returns (uint256 total){
+    function totalSupply() public override view returns (uint256 total){
         return _nextTokenId.current();
     }
 
     /*
      * @dev Returns the name of the token.
      */
-    function name() external override view returns (string memory tokenName){
+    function name() public override view returns (string memory tokenName){
         return _name;
     }
 
     /*
      * @dev Returns the symbol of the token.
      */
-    function symbol() external override view returns (string memory tokenSymbol){
+    function symbol() public override view returns (string memory tokenSymbol){
         return _symbol;
     }
 
@@ -79,12 +131,12 @@ contract KittyContract is IERC721{
      *
      * Emits a {Transfer} event.
      */
-    function transfer(address to, uint256 tokenId) external override{
-        require(_owns(tokenId) == msg.sender, "ERC721: transfer from incorrect owner");
-        require(to != address(0), "ERC721: transfer to the zero address");
-        require(to != address(this), "This contract should not receive the token" );
+    function transfer(address _to, uint256 _tokenId) external override{
+        require(_owns(_tokenId) == msg.sender, "ERC721: transfer from incorrect owner");
+        require(_to != address(0), "ERC721: transfer to the zero address");
+        require(_to != address(this), "This contract should not receive the token" );
 
-        _transfer(msg.sender, to, tokenId);
+        _transfer(msg.sender, _to, _tokenId);
     }
 
     function _transfer(address from, address to, uint256 tokenId) internal {
