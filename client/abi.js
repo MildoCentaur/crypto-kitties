@@ -1,4 +1,4 @@
-var abi =  [
+var abi = [
   {
     "inputs": [],
     "stateMutability": "nonpayable",
@@ -260,7 +260,13 @@ var abi =  [
     "constant": true
   },
   {
-    "inputs": [],
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_genes",
+        "type": "uint256"
+      }
+    ],
     "name": "createKittyGen0",
     "outputs": [
       {
